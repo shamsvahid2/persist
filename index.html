@@ -1,0 +1,824 @@
+<title>Persist — Data Science Studio</title>
+<style>
+  :root {
+    --ink: #12181b;
+    --paper: #eeefea;
+    --cobalt: #2e6fa3;
+    --brass: #b9832c;
+    --brass-soft: #d9a441;
+    --text: #1a2023;
+    --text-dim: #52605f;
+    --line: rgba(30, 45, 45, 0.16);
+    --card: #ffffff;
+    --good: #3f7a52;
+    --shadow: 0 1px 2px rgba(20,25,25,.04), 0 8px 24px -12px rgba(20,25,25,.18);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --ink: #eeefea;
+    --paper: #10151a;
+    --cobalt: #7fb2dd;
+    --brass: #e8b95c;
+    --brass-soft: #d9a441;
+    --text: #e7e9e4;
+    --text-dim: #97a29f;
+    --line: rgba(200, 210, 205, 0.14);
+    --card: #151b20;
+    --good: #6fbf8a;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 30px -14px rgba(0,0,0,.6);
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #eeefea; --paper: #10151a; --cobalt: #7fb2dd; --brass: #e8b95c; --brass-soft: #d9a441;
+      --text: #e7e9e4; --text-dim: #97a29f; --line: rgba(200, 210, 205, 0.14); --card: #151b20;
+      --good: #6fbf8a; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 30px -14px rgba(0,0,0,.6);
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  body {
+    margin: 0; background: var(--paper); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; margin: 0; text-wrap: balance; font-weight: 400; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  a { color: inherit; }
+  ::selection { background: var(--brass-soft); color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--cobalt); outline-offset: 3px; }
+  p { color: var(--text-dim); }
+
+  .eyebrow {
+    font-family: ui-monospace, monospace; font-size: 0.72rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--text-dim);
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 2.5rem; }
+  @media (max-width: 720px) { .wrap { padding: 0 1.25rem; } }
+  .wrap-narrow { max-width: 760px; }
+
+  /* ---------- Topbar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 2.5rem; backdrop-filter: blur(10px);
+    background: color-mix(in srgb, var(--paper) 80%, transparent);
+    border-bottom: 1px solid var(--line);
+  }
+  @media (max-width: 720px) { .topbar { padding: 1rem 1.25rem; } }
+  .brand { display: flex; align-items: center; gap: .55rem; text-decoration: none; }
+  .brand-mark { width: 22px; height: 22px; flex: none; }
+  .brand-name { font-family: Georgia, serif; font-size: 1.1rem; letter-spacing: 0.01em; }
+  .topnav { display: flex; align-items: center; gap: 2rem; }
+  .topnav a {
+    text-decoration: none; font-family: ui-monospace, monospace; font-size: .74rem;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim);
+  }
+  .topnav a.active, .topnav a:hover { color: var(--cobalt); }
+  .topnav-links { display: none; gap: 2rem; }
+  @media (min-width: 720px) { .topnav-links { display: flex; } }
+  .theme-toggle {
+    background: none; border: 1px solid var(--line); border-radius: 100px; width: 32px; height: 32px;
+    display: grid; place-items: center; cursor: pointer; color: var(--text); font-size: .85rem;
+  }
+  .topnav-right { display: flex; align-items: center; gap: 1.4rem; }
+  .lang-toggle { display: flex; align-items: center; gap: .35rem; font-family: ui-monospace, monospace; font-size: .72rem; letter-spacing: .05em; }
+  .lang-toggle button { background: none; border: none; cursor: pointer; color: var(--text-dim); font: inherit; padding: 0; }
+  .lang-toggle button[aria-current="true"] { color: var(--cobalt); }
+  .lang-toggle span { color: var(--line); }
+
+  /* ---------- Page shell ---------- */
+  .page { display: none; }
+  .page.active { display: block; }
+  main { min-height: 60vh; }
+
+  section { padding: 6rem 0; border-top: 1px solid var(--line); }
+  section:first-of-type { border-top: none; }
+  @media (max-width: 720px) { section { padding: 4rem 0; } }
+
+  .sec-head { margin-bottom: 3rem; }
+  .sec-head h2 { font-size: clamp(1.7rem, 3.2vw, 2.3rem); }
+  .sec-head p { max-width: 52ch; margin-top: .8rem; }
+
+  /* ---------- HOME (minimal) ---------- */
+  .home-hero { padding: 8rem 0 6rem; border-top: none; min-height: 72vh; display: flex; align-items: center; }
+  .home-hero h1 {
+    font-size: clamp(2.2rem, 5.2vw, 3.6rem); line-height: 1.12; max-width: 20ch;
+  }
+  .home-hero .lede { margin-top: 1.6rem; font-size: 1.1rem; max-width: 46ch; }
+  .home-cta { margin-top: 2.6rem; display: flex; gap: 1.1rem; flex-wrap: wrap; }
+  .btn-primary {
+    background: var(--ink); color: var(--paper); text-decoration: none;
+    font-family: ui-monospace, monospace; font-size: .78rem; letter-spacing: .07em; text-transform: uppercase;
+    padding: .9rem 1.5rem; border-radius: 3px; border: 1px solid var(--ink); display: inline-block;
+  }
+  :root[data-theme="dark"] .btn-primary { background: var(--cobalt); color: var(--ink); border-color: var(--cobalt); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn-primary { background: var(--cobalt); color: var(--ink); border-color: var(--cobalt); } }
+  .btn-ghost {
+    text-decoration: none; font-family: ui-monospace, monospace; font-size: .78rem; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--text); padding: .9rem 0; border-bottom: 1px solid var(--text);
+  }
+
+  .home-pillars { border-top: 1px solid var(--line); padding: 5rem 0; }
+  .pillar-row {
+    display: grid; grid-template-columns: 3rem 1fr; gap: 1.4rem; padding: 2rem 0; border-bottom: 1px solid var(--line);
+  }
+  .pillar-row:first-child { padding-top: 0; }
+  .pillar-row .idx { font-family: ui-monospace, monospace; color: var(--brass); font-size: .85rem; }
+  .pillar-row h3 { font-size: 1.35rem; }
+  .pillar-row p { margin: .5rem 0 0; max-width: 56ch; }
+
+  .home-close { padding: 5rem 0 7rem; border-top: 1px solid var(--line); text-align: left; }
+  .home-close h2 { font-size: clamp(1.5rem, 3vw, 2rem); max-width: 22ch; }
+  .home-close .home-cta { margin-top: 2rem; }
+
+  /* ---------- WORK page ---------- */
+  .work-block { display: grid; grid-template-columns: 1fr 1.6fr; gap: 3rem; }
+  @media (max-width: 820px) { .work-block { grid-template-columns: 1fr; gap: 1.5rem; } }
+  .work-block h3 { font-size: 1.6rem; }
+  .work-num { font-family: ui-monospace, monospace; color: var(--brass); font-size: .85rem; margin-bottom: .6rem; display: block; }
+  .work-copy p + p { margin-top: 1rem; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.4rem; }
+  .chip-row span {
+    font-family: ui-monospace, monospace; font-size: .72rem; background: var(--card); border: 1px solid var(--line);
+    padding: .4rem .75rem; border-radius: 3px; box-shadow: var(--shadow);
+  }
+
+  .process-row { display: flex; flex-direction: column; gap: 0; margin-top: 1rem; }
+  .process-step { display: grid; grid-template-columns: 3rem 1fr; gap: 1.4rem; padding: 1.5rem 0; border-top: 1px solid var(--line); }
+  .process-step .num { font-family: ui-monospace, monospace; color: var(--brass); font-size: .85rem; }
+  .process-step h4 { font-size: 1.05rem; font-family: Georgia, serif; font-weight: 400; }
+  .process-step p { margin: .4rem 0 0; font-size: .92rem; }
+
+  /* ---------- RESULTS / case studies ---------- */
+  .case {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; padding: 5rem 0; border-top: 1px solid var(--line);
+  }
+  .case:first-of-type { border-top: none; padding-top: 0; }
+  @media (max-width: 900px) { .case { grid-template-columns: 1fr; gap: 2rem; } }
+  .case-tag { font-family: ui-monospace, monospace; font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; color: var(--brass); }
+  .case h3 { font-size: 1.7rem; margin-top: .6rem; }
+  .case-copy p { margin-top: 1rem; }
+  .case-source {
+    display: inline-flex; align-items: center; gap: .4rem; margin-top: 1.4rem; font-family: ui-monospace, monospace;
+    font-size: .74rem; color: var(--cobalt); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--cobalt) 45%, transparent);
+  }
+  .case-stat { margin-top: 1.6rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .case-stat b { display: block; font-family: Georgia, serif; font-size: 1.9rem; font-style: italic; color: var(--cobalt); font-weight: 400; }
+  .case-stat span { font-family: ui-monospace, monospace; font-size: .68rem; letter-spacing: .04em; text-transform: uppercase; color: var(--text-dim); }
+  .case-visual {
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 1.8rem;
+    display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow); min-height: 320px;
+  }
+
+  /* risk bar viz */
+  .risk-viz { width: 100%; }
+  .risk-bar-row { margin-bottom: 1.3rem; }
+  .risk-bar-top { display: flex; justify-content: space-between; font-size: .85rem; margin-bottom: .45rem; }
+  .risk-bar-top .val { font-family: ui-monospace, monospace; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .risk-track { height: 10px; background: var(--paper); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .risk-fill { height: 100%; border-radius: 2px; }
+  .risk-note { font-size: .78rem; color: var(--text-dim); margin-top: 1rem; }
+
+  /* contagion diagram */
+  .contagion-diagram { width: 100%; }
+  .contagion-diagram svg { width: 100%; height: auto; }
+  .contagion-legend { display: flex; gap: 1.5rem; margin-top: 1rem; font-size: .78rem; }
+  .contagion-legend span { display: flex; align-items: center; gap: .4rem; color: var(--text-dim); }
+  .contagion-legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  /* phone mockup */
+  .phone {
+    width: 240px; border-radius: 32px; background: var(--ink); padding: 10px; box-shadow: var(--shadow);
+    position: relative;
+  }
+  .phone-screen {
+    background: var(--paper); border-radius: 24px; overflow: hidden; min-height: 460px; display: flex; flex-direction: column;
+  }
+  .phone-status { display: flex; justify-content: space-between; padding: .6rem 1rem .2rem; font-family: ui-monospace, monospace; font-size: .62rem; color: var(--text-dim); }
+  .phone-header { padding: .6rem 1rem 1rem; }
+  .phone-header .eyebrow { font-size: .6rem; }
+  .phone-header h4 { font-family: Georgia, serif; font-size: 1.15rem; margin-top: .2rem; }
+  .ai-card {
+    margin: 0 1rem 1rem; background: color-mix(in srgb, var(--cobalt) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--cobalt) 35%, transparent);
+    border-radius: 12px; padding: .8rem; display: flex; gap: .6rem;
+  }
+  .ai-card .bot { flex: none; }
+  .ai-card p { margin: 0; font-size: .74rem; color: var(--text); line-height: 1.4; }
+  .ai-card .cta-mini { margin-top: .5rem; display: inline-block; font-family: ui-monospace, monospace; font-size: .62rem; letter-spacing: .04em; text-transform: uppercase; background: var(--cobalt); color: var(--paper); padding: .3rem .6rem; border-radius: 100px; }
+  .item-row { display: flex; align-items: center; gap: .6rem; margin: 0 1rem .6rem; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: .5rem .6rem; }
+  .item-swatch { width: 28px; height: 28px; border-radius: 6px; flex: none; }
+  .item-row .info { flex: 1; }
+  .item-row .info b { display: block; font-size: .74rem; }
+  .item-row .info span { font-size: .64rem; color: var(--text-dim); font-family: ui-monospace, monospace; }
+  .stepper { display: flex; align-items: center; gap: .35rem; font-family: ui-monospace, monospace; font-size: .68rem; }
+  .stepper span { width: 16px; height: 16px; border: 1px solid var(--line); border-radius: 4px; display: grid; place-items: center; }
+  .phone-confirm { margin: auto 1rem 1rem; background: var(--ink); color: var(--paper); text-align: center; padding: .7rem; border-radius: 10px; font-family: ui-monospace, monospace; font-size: .68rem; letter-spacing: .04em; text-transform: uppercase; }
+  .phone-tabs { display: flex; justify-content: space-around; padding: .6rem 0 .8rem; border-top: 1px solid var(--line); }
+
+  /* survival chart */
+  .survival-chart { width: 100%; }
+  .survival-chart svg { width: 100%; height: auto; }
+  .survival-legend { display: flex; gap: 1.4rem; margin-top: 1rem; flex-wrap: wrap; font-size: .78rem; }
+  .survival-legend span { display: flex; align-items: center; gap: .4rem; color: var(--text-dim); }
+  .survival-legend i { width: 14px; height: 2px; display: inline-block; }
+
+  /* ---------- CONTACT ---------- */
+  .contact-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 4rem; }
+  @media (max-width: 860px) { .contact-grid { grid-template-columns: 1fr; gap: 2.5rem; } }
+  .contact-info dl { margin: 0; }
+  .contact-info dt { font-family: ui-monospace, monospace; font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); margin-top: 1.8rem; }
+  .contact-info dt:first-child { margin-top: 0; }
+  .contact-info dd { margin: .5rem 0 0; font-size: 1.05rem; color: var(--text); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+  @media (max-width: 520px) { .form-grid { grid-template-columns: 1fr; } }
+  .form-grid .full { grid-column: 1 / -1; }
+  label { display: block; font-family: ui-monospace, monospace; font-size: .68rem; letter-spacing: .05em; text-transform: uppercase; color: var(--text-dim); margin-bottom: .5rem; }
+  input, textarea {
+    width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    padding: .8rem .9rem; font: inherit; color: var(--text); resize: vertical;
+  }
+  input:focus, textarea:focus { border-color: var(--cobalt); }
+  .form-submit {
+    grid-column: 1 / -1; justify-self: start; margin-top: .5rem; background: var(--ink); color: var(--paper);
+    border: none; border-radius: 3px; font-family: ui-monospace, monospace; font-size: .78rem;
+    letter-spacing: .07em; text-transform: uppercase; padding: .95rem 2rem; cursor: pointer;
+  }
+  :root[data-theme="dark"] .form-submit { background: var(--cobalt); color: var(--ink); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .form-submit { background: var(--cobalt); color: var(--ink); } }
+  .form-note { font-size: .78rem; margin-top: .8rem; }
+
+  footer { padding: 2.5rem 0; border-top: 1px solid var(--line); }
+  .foot-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; font-family: ui-monospace, monospace; font-size: .72rem; color: var(--text-dim); }
+  .foot-row a { text-decoration: none; color: var(--text-dim); }
+  .foot-row a:hover { color: var(--cobalt); }
+  .foot-links { display: flex; gap: 1.4rem; }
+</style>
+
+<div class="topbar">
+  <a class="brand" href="#/" data-route="#/">
+    <svg class="brand-mark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M2 17 C 6 6, 10 22, 14 11 S 20 17, 22 8" stroke="var(--cobalt)" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      <circle cx="22" cy="8" r="1.8" fill="var(--brass)"/>
+    </svg>
+    <span class="brand-name">Persist</span>
+  </a>
+  <div class="topnav-right">
+    <nav class="topnav-links">
+      <a href="#/work" data-route="#/work" data-i18n="nav_work">Work</a>
+      <a href="#/results" data-route="#/results" data-i18n="nav_results">Results</a>
+      <a href="#/contact" data-route="#/contact" data-i18n="nav_contact">Contact</a>
+    </nav>
+    <div class="lang-toggle" role="group" aria-label="Language">
+      <button type="button" id="langEn" aria-current="true">EN</button>
+      <span aria-hidden="true">/</span>
+      <button type="button" id="langFr" aria-current="false">FR</button>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle color theme">◐</button>
+  </div>
+</div>
+
+<main id="app">
+
+  <!-- ============ HOME ============ -->
+  <div class="page" id="page-home" data-page="#/">
+    <section class="home-hero">
+      <div class="wrap">
+        <p class="eyebrow" data-i18n="home_eyebrow">Persist — data science studio</p>
+        <h1 data-i18n="home_h1">We build the product, the intelligence inside it, and the reason people talk about it.</h1>
+        <p class="lede" data-i18n="home_lede">Three disciplines, one team: digital products, the AI/ML engines that run them, and the science of how they spread.</p>
+        <div class="home-cta">
+          <a class="btn-primary" href="#/results" data-i18n="home_cta1">See what we've done</a>
+          <a class="btn-ghost" href="#/work" data-i18n="home_cta2">How we work</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-pillars">
+      <div class="wrap">
+        <div class="pillar-row">
+          <span class="idx">01</span>
+          <div><h3 data-i18n="pillar1_h">Digital products</h3><p data-i18n="pillar1_p">Mobile apps and websites, designed and engineered end to end — not handed off between teams that never talk to each other.</p></div>
+        </div>
+        <div class="pillar-row">
+          <span class="idx">02</span>
+          <div><h3 data-i18n="pillar2_h">AI / ML engines</h3><p data-i18n="pillar2_p">The models that make a product smart — recommendation, forecasting, and pattern detection, built into the product from day one.</p></div>
+        </div>
+        <div class="pillar-row">
+          <span class="idx">03</span>
+          <div><h3 data-i18n="pillar3_h">The science of marketing</h3><p data-i18n="pillar3_p">Network science and survival analysis applied to growth and retention — the same rigor we'd bring to a clinical dataset.</p></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ WORK ============ -->
+  <div class="page" id="page-work" data-page="#/work">
+    <section style="padding-top:4.5rem; border-top:none;">
+      <div class="wrap wrap-narrow">
+        <p class="eyebrow" data-i18n="work_eyebrow">What we do</p>
+        <h2 style="font-size:clamp(2rem,4vw,2.8rem); margin-top:.8rem;" data-i18n="work_h2">Product, intelligence, and the science of why it spreads.</h2>
+        <p style="margin-top:1.2rem; font-size:1.05rem;" data-i18n="work_intro">Most teams split these three across an agency, a data science vendor, and a marketing shop that never see each other's work. We keep them under one roof, because a recommendation engine should inform the app it lives in, and a growth strategy should be built from the same data as the product itself.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="work-block">
+          <div><span class="work-num">01</span><h3 data-i18n="work1_h">Digital products</h3></div>
+          <div class="work-copy">
+            <p data-i18n="work1_p1">We design and build mobile apps and websites end to end — product strategy, interface design, and the engineering to ship it. Nothing is templated: every product is built around the data it needs to collect and the decisions it needs to support later.</p>
+            <p data-i18n="work1_p2">That matters because a product built without its data layer in mind is expensive to retrofit with intelligence afterward. We design the two together.</p>
+            <div class="chip-row">
+              <span>iOS &amp; Android</span><span>React Native</span><span>Next.js</span><span>Design systems</span><span>API &amp; backend</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="work-block">
+          <div><span class="work-num">02</span><h3 data-i18n="work2_h">AI / ML engines</h3></div>
+          <div class="work-copy">
+            <p data-i18n="work2_p1">This is where most of our research background shows up. We design the models that sit inside the product — engines that recommend, forecast, rank, or flag risk — using methods drawn from applied statistics and topology, not just off-the-shelf ML libraries.</p>
+            <p data-i18n="work2_p2">We've applied topological data analysis to stratify patient risk in a clinical dataset, and the same class of tools to model how behaviors spread through a network. The engines we build for products draw on that same toolkit.</p>
+            <div class="chip-row">
+              <span>Recommendation systems</span><span>Forecasting</span><span>Topological data analysis</span><span>Survival analysis</span><span>Applied ML</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="work-block">
+          <div><span class="work-num">03</span><h3 data-i18n="work3_h">The science of marketing</h3></div>
+          <div class="work-copy">
+            <p data-i18n="work3_p1">Word of mouth isn't one phenomenon — some products spread the way a simple message does, person to person; others need social reinforcement before anyone acts. We use models built for epidemic and contagion research to tell which one your product is dealing with, and design seeding and referral strategy around that answer.</p>
+            <p data-i18n="work3_p2">The same logic applies after acquisition: we treat retention as a survival problem — asking not just who will churn, but when — because that question is usually the more useful one to act on.</p>
+            <div class="chip-row">
+              <span>Contagion modeling</span><span>Seeding strategy</span><span>Kaplan-Meier retention curves</span><span>Cohort analysis</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap wrap-narrow">
+        <div class="sec-head">
+          <p class="eyebrow" data-i18n="process_eyebrow">How an engagement runs</p>
+          <h2 data-i18n="process_h2">Three stages, same team throughout.</h2>
+        </div>
+        <div class="process-row">
+          <div class="process-step"><span class="num">01</span><div><h4 data-i18n="process1_h">Build</h4><p data-i18n="process1_p">Ship the product — app, site, or both — with the data model it will need later already in place.</p></div></div>
+          <div class="process-step"><span class="num">02</span><div><h4 data-i18n="process2_h">Model</h4><p data-i18n="process2_p">Design the ML engine on real product data, not a synthetic benchmark, and put it back into the product.</p></div></div>
+          <div class="process-step"><span class="num">03</span><div><h4 data-i18n="process3_h">Grow &amp; retain</h4><p data-i18n="process3_p">Apply contagion and survival models to how the product spreads and who it keeps, then feed that back into stage one.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-close">
+      <div class="wrap">
+        <h2 data-i18n="home_close_h2">We've used this approach on a hospital dataset and on our own product's churn curve. Same tools, different data.</h2>
+        <div class="home-cta">
+          <a class="btn-primary" href="#/results" data-i18n="home_close_cta">Read the case studies</a>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ RESULTS ============ -->
+  <div class="page" id="page-results" data-page="#/results">
+    <section style="padding-top:4.5rem; border-top:none;">
+      <div class="wrap wrap-narrow">
+        <p class="eyebrow" data-i18n="results_eyebrow">What we've done</p>
+        <h2 style="font-size:clamp(2rem,4vw,2.8rem); margin-top:.8rem;" data-i18n="results_h2">Four ways we've put this to work.</h2>
+        <p style="margin-top:1.2rem; font-size:1.05rem;" data-i18n="results_intro">Two research collaborations, one shipped product, and how we think about the metric that costs companies the most: churn.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+
+        <!-- Case 1: Stroke risk -->
+        <div class="case">
+          <div>
+            <span class="case-tag" data-i18n="case1_tag">Healthcare · Topological Data Analysis</span>
+            <h3 data-i18n="case1_h">Detecting stroke risk before it happens</h3>
+            <div class="case-copy">
+              <p data-i18n="case1_p1">Working with hospital data on patients with atrial fibrillation, we applied topological data analysis — mapping 5,106 patient records from 15 clinical factors into a shape that groups similar patients together, rather than sorting them into pre-defined buckets.</p>
+              <p data-i18n="case1_p2">That shape revealed five distinct patient phenotypes with sharply different stroke risk. It's the same data science we bring to any client's data: don't force it into categories that already exist — let the structure of the data tell you where the real risk groups are.</p>
+            </div>
+            <a class="case-source" href="https://academic.oup.com/eurheartj/article/46/Supplement_1/ehaf784.418/8311380" target="_blank" rel="noopener" data-i18n="case1_source">Read the published abstract ↗</a>
+          </div>
+          <div class="case-visual">
+            <div class="risk-viz">
+              <div class="risk-bar-row">
+                <div class="risk-bar-top"><span data-i18n="case1_bar1">Hypertension + obesity phenotype</span><span class="val">11.7×</span></div>
+                <div class="risk-track"><div class="risk-fill" style="width:100%; background:var(--brass);"></div></div>
+              </div>
+              <div class="risk-bar-row">
+                <div class="risk-bar-top"><span data-i18n="case1_bar2">Males under 60 phenotype</span><span class="val">4.4×</span></div>
+                <div class="risk-track"><div class="risk-fill" style="width:38%; background:var(--cobalt);"></div></div>
+              </div>
+              <p class="risk-note" data-i18n="case1_note">Stroke risk relative to baseline, across two of five phenotypes identified in a UK Biobank AF cohort (n = 5,106).</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Case 2: Word of mouth -->
+        <div class="case">
+          <div>
+            <span class="case-tag" data-i18n="case2_tag">Marketing Science · Network Contagion</span>
+            <h3 data-i18n="case2_h">Modeling how word of mouth actually spreads</h3>
+            <div class="case-copy">
+              <p data-i18n="case2_p1">Not every product spreads the same way. A "simple contagion" moves person to person, like a single recommendation being enough. A "complex contagion" needs reinforcement — someone adopts only after seeing several people they trust do it first.</p>
+              <p data-i18n="case2_p2">Using extended persistent homology — a technique from topological data analysis — we built a model that classifies which mechanism is driving adoption on a network, and predicts its parameters with high accuracy, even with the noisy, incomplete data real campaigns produce. Know which one you're dealing with, and seeding, influencer selection, and referral design stop being guesswork.</p>
+            </div>
+            <a class="case-source" href="https://arxiv.org/abs/2505.00958" target="_blank" rel="noopener" data-i18n="case2_source">Read the paper ↗</a>
+          </div>
+          <div class="case-visual">
+            <div class="contagion-diagram">
+              <svg viewBox="0 0 300 200" aria-hidden="true">
+                <circle cx="40" cy="40" r="5" fill="var(--cobalt)"/>
+                <circle cx="100" cy="30" r="5" fill="var(--cobalt)"/>
+                <circle cx="150" cy="55" r="5" fill="var(--cobalt)"/>
+                <circle cx="210" cy="35" r="5" fill="var(--cobalt)"/>
+                <line x1="40" y1="40" x2="100" y2="30" stroke="var(--cobalt)" stroke-width="1.4"/>
+                <line x1="100" y1="30" x2="150" y2="55" stroke="var(--cobalt)" stroke-width="1.4"/>
+                <line x1="150" y1="55" x2="210" y2="35" stroke="var(--cobalt)" stroke-width="1.4"/>
+                <text x="40" y="18" class="mono" font-size="9" fill="var(--text-dim)" data-i18n="case2_diagram1">simple contagion — one path is enough</text>
+
+                <circle cx="55" cy="150" r="5" fill="var(--brass)"/>
+                <circle cx="95" cy="120" r="5" fill="var(--brass)"/>
+                <circle cx="95" cy="175" r="5" fill="var(--brass)"/>
+                <circle cx="150" cy="150" r="6" fill="var(--brass)"/>
+                <circle cx="205" cy="120" r="5" fill="var(--brass)"/>
+                <circle cx="205" cy="175" r="5" fill="var(--brass)"/>
+                <line x1="55" y1="150" x2="95" y2="120" stroke="var(--brass)" stroke-width="1.2"/>
+                <line x1="55" y1="150" x2="95" y2="175" stroke="var(--brass)" stroke-width="1.2"/>
+                <line x1="95" y1="120" x2="150" y2="150" stroke="var(--brass)" stroke-width="1.2"/>
+                <line x1="95" y1="175" x2="150" y2="150" stroke="var(--brass)" stroke-width="1.2"/>
+                <line x1="150" y1="150" x2="205" y2="120" stroke="var(--brass)" stroke-width="1.2" stroke-dasharray="2 2"/>
+                <line x1="150" y1="150" x2="205" y2="175" stroke="var(--brass)" stroke-width="1.2" stroke-dasharray="2 2"/>
+                <text x="55" y="98" class="mono" font-size="9" fill="var(--text-dim)" data-i18n="case2_diagram2">complex contagion — needs reinforcement</text>
+              </svg>
+              <div class="contagion-legend">
+                <span><i style="background:var(--cobalt)"></i><span data-i18n="case2_legend1">Simple — single exposure</span></span>
+                <span><i style="background:var(--brass)"></i><span data-i18n="case2_legend2">Complex — multiple sources</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Case 3: Applications -->
+        <div class="case">
+          <div>
+            <span class="case-tag" data-i18n="case3_tag">Product · AI/ML Engine</span>
+            <h3 data-i18n="case3_h">An ordering engine that reorders for you</h3>
+            <div class="case-copy">
+              <p data-i18n="case3_p1">One of our own applications: a mobile ordering engine that watches a customer's purchase pattern and prompts a reorder before they run out — rather than waiting for them to open the app and remember. The model behind it is the same forecasting logic we use in retention work, pointed at inventory instead of churn.</p>
+              <p data-i18n="case3_p2">The interface stays out of the way. One card, one decision: confirm, adjust, or skip.</p>
+            </div>
+          </div>
+          <div class="case-visual">
+            <div class="phone">
+              <div class="phone-screen">
+                <div class="phone-status"><span>9:41</span><span>●●●●</span></div>
+                <div class="phone-header">
+                  <span class="eyebrow" data-i18n="phone_eyebrow">Auto-Order</span>
+                  <h4 data-i18n="phone_h4">Ready to reorder?</h4>
+                </div>
+                <div class="ai-card">
+                  <svg class="bot" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="7" width="14" height="11" rx="3" fill="var(--cobalt)"/><circle cx="9.5" cy="12.5" r="1.4" fill="var(--paper)"/><circle cx="14.5" cy="12.5" r="1.4" fill="var(--paper)"/><line x1="12" y1="7" x2="12" y2="3" stroke="var(--cobalt)" stroke-width="1.6"/><circle cx="12" cy="2.4" r="1.4" fill="var(--cobalt)"/></svg>
+                  <div>
+                    <p data-i18n="ai_card_text">Based on your last 3 orders, you're likely low on <strong>Oat Milk</strong> and <strong>Coffee Filters</strong>.</p>
+                    <span class="cta-mini" data-i18n="ai_card_cta">Reorder both</span>
+                  </div>
+                </div>
+                <div class="item-row">
+                  <div class="item-swatch" style="background:var(--cobalt)"></div>
+                  <div class="info"><b data-i18n="item1_name">Oat Milk, 1L</b><span data-i18n="item1_freq">usually every 9 days</span></div>
+                  <div class="stepper"><span>–</span>1<span>+</span></div>
+                </div>
+                <div class="item-row">
+                  <div class="item-swatch" style="background:var(--brass)"></div>
+                  <div class="info"><b data-i18n="item2_name">Coffee Filters</b><span data-i18n="item2_freq">usually every 21 days</span></div>
+                  <div class="stepper"><span>–</span>2<span>+</span></div>
+                </div>
+                <div class="phone-confirm" data-i18n="phone_confirm">Confirm reorder — $34.20</div>
+                <div class="phone-tabs">
+                  <svg width="18" height="18" viewBox="0 0 24 24"><path d="M4 11 L12 4 L20 11 V20 H4 Z" fill="none" stroke="var(--text-dim)" stroke-width="1.6"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="9" cy="19" r="1.6" fill="var(--text-dim)"/><circle cx="18" cy="19" r="1.6" fill="var(--text-dim)"/><path d="M2 4 H5 L8 15 H19 L21 7 H6" fill="none" stroke="var(--text-dim)" stroke-width="1.6"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4" fill="none" stroke="var(--text-dim)" stroke-width="1.6"/><path d="M4 20 C4 15 8 13 12 13 S20 15 20 20" fill="none" stroke="var(--text-dim)" stroke-width="1.6"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Case 4: Churn -->
+        <div class="case">
+          <div>
+            <span class="case-tag" data-i18n="case4_tag">Retention Science · Survival Analysis</span>
+            <h3 data-i18n="case4_h">We treat churn like a lifetime, not a label</h3>
+            <div class="case-copy">
+              <p data-i18n="case4_p1">Most churn models answer one question: will this customer leave, yes or no. We think the more useful question is <em>when</em> — because a customer flagged "likely to churn" six months from now needs a different response than one at risk this week.</p>
+              <p data-i18n="case4_p2">We use Kaplan-Meier survival analysis — the same method used to study patient survival in clinical trials — applied to customer lifetime instead. It correctly handles customers who are still active when you're looking (rather than throwing that information away), and lets you compare retention curves across segments: acquisition source, first purchase size, geography, feature adoption.</p>
+            </div>
+            <div class="case-stat">
+              <b>169 vs 76 <span data-i18n="case4_stat_unit">days</span></b>
+              <span data-i18n="case4_stat_label">Median time active — large vs. small first purchase, in a modeled cohort</span>
+            </div>
+          </div>
+          <div class="case-visual">
+            <div class="survival-chart">
+              <svg viewBox="0 0 320 210" id="survivalSvg" aria-label="Kaplan-Meier survival curves comparing customers by first purchase size"></svg>
+              <div class="survival-legend">
+                <span><i style="background:var(--cobalt)"></i><span data-i18n="survival_legend1">Large first purchase — median 169 days</span></span>
+                <span><i style="background:var(--brass)"></i><span data-i18n="survival_legend2">Small first purchase — median 76 days</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ CONTACT ============ -->
+  <div class="page" id="page-contact" data-page="#/contact">
+    <section style="padding-top:4.5rem; border-top:none;">
+      <div class="wrap contact-grid">
+        <div class="contact-info">
+          <p class="eyebrow" data-i18n="contact_eyebrow">Contact</p>
+          <h2 style="font-size:2.1rem; margin:1rem 0 2rem;" data-i18n="contact_h2">Tell us what needs building.</h2>
+          <dl>
+            <dt data-i18n="contact_email_label">Email</dt>
+            <dd><a href="mailto:hello@persist.example">hello@persist.example</a></dd>
+            <dt data-i18n="contact_research_label">For research collaborations</dt>
+            <dd data-i18n="contact_research_body">Hospitals, universities, and applied research partners welcome.</dd>
+          </dl>
+        </div>
+        <form class="form-grid" onsubmit="return false;">
+          <div>
+            <label for="fname" data-i18n="form_name">Name</label>
+            <input id="fname" type="text" autocomplete="name" required>
+          </div>
+          <div>
+            <label for="femail" data-i18n="form_email">Email</label>
+            <input id="femail" type="email" autocomplete="email" required>
+          </div>
+          <div class="full">
+            <label for="ftype" data-i18n="form_type">What are you looking for</label>
+            <input id="ftype" type="text" placeholder="e.g. product build, ML engine, retention analysis" data-i18n-placeholder="form_type_ph">
+          </div>
+          <div class="full">
+            <label for="fmsg" data-i18n="form_msg">Message</label>
+            <textarea id="fmsg" rows="4" required></textarea>
+          </div>
+          <button class="form-submit" type="submit" data-i18n="form_submit">Send message</button>
+          <p class="form-note full" data-i18n="form_note">This is a design demo — the form doesn't send anywhere yet.</p>
+        </form>
+      </div>
+    </section>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap foot-row">
+    <span>&copy; 2026 Persist</span>
+    <div class="foot-links">
+      <a href="#/work" data-i18n="nav_work">Work</a>
+      <a href="#/results" data-i18n="nav_results">Results</a>
+      <a href="#/contact" data-i18n="nav_contact">Contact</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Translations
+  var i18n = {
+    nav_work: { en: 'Work', fr: 'Travail' },
+    nav_results: { en: 'Results', fr: 'Résultats' },
+    nav_contact: { en: 'Contact', fr: 'Contact' },
+
+    home_eyebrow: { en: 'Persist — data science studio', fr: 'Persist — studio de science des données' },
+    home_h1: { en: 'We build the product, the intelligence inside it, and the reason people talk about it.', fr: "Nous construisons le produit, l'intelligence qu'il contient, et la raison pour laquelle on en parle." },
+    home_lede: { en: 'Three disciplines, one team: digital products, the AI/ML engines that run them, and the science of how they spread.', fr: "Trois disciplines, une seule équipe : les produits numériques, les moteurs IA/ML qui les font fonctionner, et la science de leur diffusion." },
+    home_cta1: { en: "See what we've done", fr: 'Voir nos réalisations' },
+    home_cta2: { en: 'How we work', fr: 'Comment nous travaillons' },
+    pillar1_h: { en: 'Digital products', fr: 'Produits numériques' },
+    pillar1_p: { en: 'Mobile apps and websites, designed and engineered end to end — not handed off between teams that never talk to each other.', fr: "Applications mobiles et sites web, conçus et développés de bout en bout — sans être transmis entre des équipes qui ne se parlent jamais." },
+    pillar2_h: { en: 'AI / ML engines', fr: 'Moteurs IA / ML' },
+    pillar2_p: { en: 'The models that make a product smart — recommendation, forecasting, and pattern detection, built into the product from day one.', fr: "Les modèles qui rendent un produit intelligent — recommandation, prévision et détection de tendances, intégrés au produit dès le premier jour." },
+    pillar3_h: { en: 'The science of marketing', fr: 'La science du marketing' },
+    pillar3_p: { en: "Network science and survival analysis applied to growth and retention — the same rigor we'd bring to a clinical dataset.", fr: "Science des réseaux et analyse de survie appliquées à la croissance et à la rétention — la même rigueur que nous appliquerions à des données cliniques." },
+    home_close_h2: { en: "We've used this approach on a hospital dataset and on our own product's churn curve. Same tools, different data.", fr: "Nous avons utilisé cette approche sur des données hospitalières et sur la courbe de désabonnement de notre propre produit. Mêmes outils, données différentes." },
+    home_close_cta: { en: 'Read the case studies', fr: 'Lire les études de cas' },
+
+    work_eyebrow: { en: 'What we do', fr: 'Ce que nous faisons' },
+    work_h2: { en: 'Product, intelligence, and the science of why it spreads.', fr: "Le produit, l'intelligence, et la science de sa diffusion." },
+    work_intro: { en: 'Most teams split these three across an agency, a data science vendor, and a marketing shop that never see each other\'s work. We keep them under one roof, because a recommendation engine should inform the app it lives in, and a growth strategy should be built from the same data as the product itself.', fr: "La plupart des équipes répartissent ces trois rôles entre une agence, un prestataire en science des données et une agence marketing qui ne voient jamais le travail des autres. Nous les réunissons sous un même toit, car un moteur de recommandation doit s'appuyer sur l'application qu'il habite, et une stratégie de croissance doit être construite à partir des mêmes données que le produit lui-même." },
+    work1_h: { en: 'Digital products', fr: 'Produits numériques' },
+    work1_p1: { en: 'We design and build mobile apps and websites end to end — product strategy, interface design, and the engineering to ship it. Nothing is templated: every product is built around the data it needs to collect and the decisions it needs to support later.', fr: "Nous concevons et développons des applications mobiles et des sites web de bout en bout — stratégie produit, design d'interface et ingénierie pour le livrer. Rien n'est un modèle générique : chaque produit est construit autour des données qu'il doit collecter et des décisions qu'il devra appuyer plus tard." },
+    work1_p2: { en: "That matters because a product built without its data layer in mind is expensive to retrofit with intelligence afterward. We design the two together.", fr: "C'est important car un produit conçu sans penser à sa couche de données coûte cher à rendre intelligent après coup. Nous concevons les deux ensemble." },
+    work2_h: { en: 'AI / ML engines', fr: 'Moteurs IA / ML' },
+    work2_p1: { en: 'This is where most of our research background shows up. We design the models that sit inside the product — engines that recommend, forecast, rank, or flag risk — using methods drawn from applied statistics and topology, not just off-the-shelf ML libraries.', fr: "C'est ici que notre expérience en recherche se manifeste le plus. Nous concevons les modèles au cœur du produit — moteurs de recommandation, de prévision, de classement ou de détection de risque — en nous appuyant sur des méthodes issues des statistiques appliquées et de la topologie, pas seulement sur des bibliothèques de ML standard." },
+    work2_p2: { en: "We've applied topological data analysis to stratify patient risk in a clinical dataset, and the same class of tools to model how behaviors spread through a network. The engines we build for products draw on that same toolkit.", fr: "Nous avons appliqué l'analyse topologique des données pour stratifier le risque des patients dans un jeu de données cliniques, et la même famille d'outils pour modéliser la diffusion des comportements dans un réseau. Les moteurs que nous construisons pour les produits s'appuient sur cette même boîte à outils." },
+    work3_h: { en: 'The science of marketing', fr: 'La science du marketing' },
+    work3_p1: { en: "Word of mouth isn't one phenomenon — some products spread the way a simple message does, person to person; others need social reinforcement before anyone acts. We use models built for epidemic and contagion research to tell which one your product is dealing with, and design seeding and referral strategy around that answer.", fr: "Le bouche-à-oreille n'est pas un phénomène unique : certains produits se diffusent comme un simple message, de personne à personne ; d'autres ont besoin d'un renforcement social avant que quiconque agisse. Nous utilisons des modèles issus de la recherche sur les épidémies et la contagion pour déterminer lequel concerne votre produit, et concevoir une stratégie d'amorçage et de parrainage en conséquence." },
+    work3_p2: { en: 'The same logic applies after acquisition: we treat retention as a survival problem — asking not just who will churn, but when — because that question is usually the more useful one to act on.', fr: "La même logique s'applique après l'acquisition : nous traitons la rétention comme un problème de survie — en nous demandant non seulement qui va partir, mais quand — car cette question est généralement la plus utile pour agir." },
+    process_eyebrow: { en: 'How an engagement runs', fr: 'Comment se déroule une collaboration' },
+    process_h2: { en: 'Three stages, same team throughout.', fr: 'Trois étapes, la même équipe du début à la fin.' },
+    process1_h: { en: 'Build', fr: 'Construire' },
+    process1_p: { en: 'Ship the product — app, site, or both — with the data model it will need later already in place.', fr: "Livrer le produit — application, site, ou les deux — avec le modèle de données dont il aura besoin plus tard déjà en place." },
+    process2_h: { en: 'Model', fr: 'Modéliser' },
+    process2_p: { en: 'Design the ML engine on real product data, not a synthetic benchmark, and put it back into the product.', fr: "Concevoir le moteur ML sur de vraies données produit, pas sur un benchmark synthétique, et le réintégrer au produit." },
+    process3_h: { en: 'Grow & retain', fr: 'Croître et retenir' },
+    process3_p: { en: 'Apply contagion and survival models to how the product spreads and who it keeps, then feed that back into stage one.', fr: "Appliquer des modèles de contagion et de survie à la diffusion du produit et à la rétention des utilisateurs, puis réinjecter cela dans la première étape." },
+
+    results_eyebrow: { en: "What we've done", fr: 'Ce que nous avons fait' },
+    results_h2: { en: "Four ways we've put this to work.", fr: 'Quatre façons dont nous avons mis cela en pratique.' },
+    results_intro: { en: 'Two research collaborations, one shipped product, and how we think about the metric that costs companies the most: churn.', fr: "Deux collaborations de recherche, un produit livré, et notre façon de penser la métrique qui coûte le plus cher aux entreprises : le désabonnement." },
+
+    case1_tag: { en: 'Healthcare · Topological Data Analysis', fr: 'Santé · Analyse topologique des données' },
+    case1_h: { en: 'Detecting stroke risk before it happens', fr: "Détecter le risque d'AVC avant qu'il ne survienne" },
+    case1_p1: { en: 'Working with hospital data on patients with atrial fibrillation, we applied topological data analysis — mapping 5,106 patient records from 15 clinical factors into a shape that groups similar patients together, rather than sorting them into pre-defined buckets.', fr: "En travaillant avec des données hospitalières sur des patients atteints de fibrillation auriculaire, nous avons appliqué l'analyse topologique des données — en transformant 5 106 dossiers patients à partir de 15 facteurs cliniques en une forme qui regroupe les patients similaires, plutôt que de les classer dans des catégories prédéfinies." },
+    case1_p2: { en: "That shape revealed five distinct patient phenotypes with sharply different stroke risk. It's the same data science we bring to any client's data: don't force it into categories that already exist — let the structure of the data tell you where the real risk groups are.", fr: "Cette forme a révélé cinq phénotypes de patients distincts avec des risques d'AVC nettement différents. C'est la même science des données que nous apportons aux données de tout client : ne pas forcer les données dans des catégories déjà existantes — laisser la structure des données révéler où se trouvent les vrais groupes à risque." },
+    case1_source: { en: 'Read the published abstract ↗', fr: "Lire le résumé publié ↗" },
+    case1_bar1: { en: 'Hypertension + obesity phenotype', fr: 'Phénotype hypertension + obésité' },
+    case1_bar2: { en: 'Males under 60 phenotype', fr: 'Phénotype hommes de moins de 60 ans' },
+    case1_note: { en: 'Stroke risk relative to baseline, across two of five phenotypes identified in a UK Biobank AF cohort (n = 5,106).', fr: "Risque d'AVC relatif à la référence, pour deux des cinq phénotypes identifiés dans une cohorte FA de l'UK Biobank (n = 5 106)." },
+
+    case2_tag: { en: 'Marketing Science · Network Contagion', fr: 'Science du marketing · Contagion en réseau' },
+    case2_h: { en: 'Modeling how word of mouth actually spreads', fr: 'Modéliser la façon dont le bouche-à-oreille se diffuse réellement' },
+    case2_p1: { en: 'Not every product spreads the same way. A "simple contagion" moves person to person, like a single recommendation being enough. A "complex contagion" needs reinforcement — someone adopts only after seeing several people they trust do it first.', fr: 'Tous les produits ne se diffusent pas de la même façon. Une « contagion simple » se propage de personne à personne, une seule recommandation suffisant. Une « contagion complexe » nécessite un renforcement — une personne n\'adopte qu\'après avoir vu plusieurs personnes de confiance le faire avant elle.' },
+    case2_p2: { en: "Using extended persistent homology — a technique from topological data analysis — we built a model that classifies which mechanism is driving adoption on a network, and predicts its parameters with high accuracy, even with the noisy, incomplete data real campaigns produce. Know which one you're dealing with, and seeding, influencer selection, and referral design stop being guesswork.", fr: "En utilisant l'homologie persistante étendue — une technique issue de l'analyse topologique des données — nous avons construit un modèle qui identifie le mécanisme à l'œuvre dans un réseau et prédit ses paramètres avec une grande précision, même avec les données bruitées et incomplètes produites par les campagnes réelles. Savoir à quel mécanisme on a affaire transforme l'amorçage, le choix des influenceurs et la conception du parrainage, qui cessent d'être des paris." },
+    case2_source: { en: 'Read the paper ↗', fr: "Lire l'article ↗" },
+    case2_diagram1: { en: 'simple contagion — one path is enough', fr: 'contagion simple — un seul chemin suffit' },
+    case2_diagram2: { en: 'complex contagion — needs reinforcement', fr: 'contagion complexe — nécessite un renforcement' },
+    case2_legend1: { en: 'Simple — single exposure', fr: 'Simple — exposition unique' },
+    case2_legend2: { en: 'Complex — multiple sources', fr: 'Complexe — sources multiples' },
+
+    case3_tag: { en: 'Product · AI/ML Engine', fr: 'Produit · Moteur IA/ML' },
+    case3_h: { en: 'An ordering engine that reorders for you', fr: 'Un moteur de commande qui recommande pour vous' },
+    case3_p1: { en: "One of our own applications: a mobile ordering engine that watches a customer's purchase pattern and prompts a reorder before they run out — rather than waiting for them to open the app and remember. The model behind it is the same forecasting logic we use in retention work, pointed at inventory instead of churn.", fr: "L'une de nos propres applications : un moteur de commande mobile qui observe les habitudes d'achat d'un client et propose une recommande avant qu'il ne soit à court — plutôt que d'attendre qu'il ouvre l'application et s'en souvienne. Le modèle qui le pilote applique la même logique de prévision que nous utilisons pour la rétention, mais appliquée aux stocks plutôt qu'au désabonnement." },
+    case3_p2: { en: 'The interface stays out of the way. One card, one decision: confirm, adjust, or skip.', fr: "L'interface reste discrète. Une carte, une décision : confirmer, ajuster ou passer." },
+    phone_eyebrow: { en: 'Auto-Order', fr: 'Commande Auto' },
+    phone_h4: { en: 'Ready to reorder?', fr: 'Prêt à recommander ?' },
+    ai_card_text: { en: "Based on your last 3 orders, you're likely low on <strong>Oat Milk</strong> and <strong>Coffee Filters</strong>.", fr: "D'après vos 3 dernières commandes, vous manquez probablement de <strong>lait d'avoine</strong> et de <strong>filtres à café</strong>." },
+    ai_card_cta: { en: 'Reorder both', fr: 'Recommander les deux' },
+    item1_name: { en: 'Oat Milk, 1L', fr: "Lait d'avoine, 1L" },
+    item1_freq: { en: 'usually every 9 days', fr: 'habituellement tous les 9 jours' },
+    item2_name: { en: 'Coffee Filters', fr: 'Filtres à café' },
+    item2_freq: { en: 'usually every 21 days', fr: 'habituellement tous les 21 jours' },
+    phone_confirm: { en: 'Confirm reorder — $34.20', fr: 'Confirmer — 34,20 $' },
+
+    case4_tag: { en: 'Retention Science · Survival Analysis', fr: 'Science de la rétention · Analyse de survie' },
+    case4_h: { en: 'We treat churn like a lifetime, not a label', fr: 'Nous traitons le désabonnement comme une durée de vie, pas comme une étiquette' },
+    case4_p1: { en: 'Most churn models answer one question: will this customer leave, yes or no. We think the more useful question is <em>when</em> — because a customer flagged "likely to churn" six months from now needs a different response than one at risk this week.', fr: 'La plupart des modèles de désabonnement répondent à une seule question : ce client va-t-il partir, oui ou non. Nous pensons que la question la plus utile est <em>quand</em> — car un client identifié comme « à risque de partir » dans six mois nécessite une réponse différente de celui à risque cette semaine.' },
+    case4_p2: { en: "We use Kaplan-Meier survival analysis — the same method used to study patient survival in clinical trials — applied to customer lifetime instead. It correctly handles customers who are still active when you're looking (rather than throwing that information away), and lets you compare retention curves across segments: acquisition source, first purchase size, geography, feature adoption.", fr: "Nous utilisons l'analyse de survie de Kaplan-Meier — la même méthode utilisée pour étudier la survie des patients dans les essais cliniques — appliquée cette fois à la durée de vie des clients. Elle traite correctement les clients encore actifs au moment de l'analyse (plutôt que d'ignorer cette information), et permet de comparer les courbes de rétention entre segments : source d'acquisition, taille du premier achat, géographie, adoption des fonctionnalités." },
+    case4_stat_unit: { en: 'days', fr: 'jours' },
+    case4_stat_label: { en: 'Median time active — large vs. small first purchase, in a modeled cohort', fr: "Durée médiane d'activité — premier achat important vs. faible, dans une cohorte modélisée" },
+    survival_legend1: { en: 'Large first purchase — median 169 days', fr: 'Premier achat important — médiane 169 jours' },
+    survival_legend2: { en: 'Small first purchase — median 76 days', fr: 'Premier achat faible — médiane 76 jours' },
+
+    contact_eyebrow: { en: 'Contact', fr: 'Contact' },
+    contact_h2: { en: 'Tell us what needs building.', fr: 'Dites-nous ce qu\'il faut construire.' },
+    contact_email_label: { en: 'Email', fr: 'E-mail' },
+    contact_research_label: { en: 'For research collaborations', fr: 'Pour les collaborations de recherche' },
+    contact_research_body: { en: 'Hospitals, universities, and applied research partners welcome.', fr: 'Hôpitaux, universités et partenaires de recherche appliquée bienvenus.' },
+    form_name: { en: 'Name', fr: 'Nom' },
+    form_email: { en: 'Email', fr: 'E-mail' },
+    form_type: { en: 'What are you looking for', fr: 'Que recherchez-vous' },
+    form_type_ph: { en: 'e.g. product build, ML engine, retention analysis', fr: 'ex. : création de produit, moteur ML, analyse de rétention' },
+    form_msg: { en: 'Message', fr: 'Message' },
+    form_submit: { en: 'Send message', fr: 'Envoyer le message' },
+    form_note: { en: "This is a design demo — the form doesn't send anywhere yet.", fr: "Ceci est une démonstration de design — le formulaire n'envoie encore rien." }
+  };
+
+  (function () {
+    var root = document.documentElement;
+    var enBtn = document.getElementById('langEn');
+    var frBtn = document.getElementById('langFr');
+    var nodes = Array.prototype.slice.call(document.querySelectorAll('[data-i18n]'));
+    var phNodes = Array.prototype.slice.call(document.querySelectorAll('[data-i18n-placeholder]'));
+
+    function apply(lang) {
+      nodes.forEach(function (n) {
+        var key = n.getAttribute('data-i18n');
+        var entry = i18n[key];
+        if (entry) n.innerHTML = entry[lang] || entry.en;
+      });
+      phNodes.forEach(function (n) {
+        var key = n.getAttribute('data-i18n-placeholder');
+        var entry = i18n[key];
+        if (entry) n.setAttribute('placeholder', entry[lang] || entry.en);
+      });
+      root.setAttribute('lang', lang);
+      enBtn.setAttribute('aria-current', lang === 'en' ? 'true' : 'false');
+      frBtn.setAttribute('aria-current', lang === 'fr' ? 'true' : 'false');
+      try { localStorage.setItem('persist-lang', lang); } catch (e) {}
+    }
+
+    var stored = null;
+    try { stored = localStorage.getItem('persist-lang'); } catch (e) {}
+    apply(stored === 'fr' ? 'fr' : 'en');
+
+    enBtn.addEventListener('click', function () { apply('en'); });
+    frBtn.addEventListener('click', function () { apply('fr'); });
+  })();
+
+  // Theme toggle
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('themeToggle');
+    var stored = null;
+    try { stored = localStorage.getItem('persist-theme'); } catch (e) {}
+    if (stored) root.setAttribute('data-theme', stored);
+    btn.addEventListener('click', function () {
+      var current = root.getAttribute('data-theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var effectiveDark = current ? current === 'dark' : prefersDark;
+      var next = effectiveDark ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('persist-theme', next); } catch (e) {}
+    });
+  })();
+
+  // Hash router
+  (function () {
+    var pages = Array.prototype.slice.call(document.querySelectorAll('.page'));
+    var navLinks = Array.prototype.slice.call(document.querySelectorAll('[data-route]'));
+    function route() {
+      var hash = window.location.hash || '#/';
+      var match = pages.find(function (p) { return p.dataset.page === hash; }) || pages[0];
+      pages.forEach(function (p) { p.classList.toggle('active', p === match); });
+      navLinks.forEach(function (l) { l.classList.toggle('active', l.getAttribute('data-route') === match.dataset.page); });
+      window.scrollTo(0, 0);
+    }
+    window.addEventListener('hashchange', route);
+    route();
+  })();
+
+  // Kaplan-Meier style survival chart
+  (function () {
+    var svg = document.getElementById('survivalSvg');
+    if (!svg) return;
+    var W = 320, H = 210, padL = 34, padB = 26, padT = 10, padR = 8;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    var maxDay = 220;
+
+    function xPos(day) { return padL + (day / maxDay) * plotW; }
+    function yPos(p) { return padT + (1 - p) * plotH; }
+
+    // step-function data: [day, survival probability]
+    var large = [[0,1],[20,0.97],[45,0.93],[80,0.87],[110,0.78],[140,0.68],[169,0.5],[190,0.42],[220,0.35]];
+    var small = [[0,1],[10,0.9],[25,0.76],[40,0.63],[55,0.52],[76,0.4],[110,0.3],[160,0.2],[220,0.14]];
+
+    function stepPath(data) {
+      var d = 'M ' + xPos(data[0][0]) + ' ' + yPos(data[0][1]);
+      for (var i = 1; i < data.length; i++) {
+        d += ' L ' + xPos(data[i][0]) + ' ' + yPos(data[i - 1][1]);
+        d += ' L ' + xPos(data[i][0]) + ' ' + yPos(data[i][1]);
+      }
+      return d;
+    }
+
+    var ns = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs) {
+      var e = document.createElementNS(ns, tag);
+      for (var k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    // grid
+    [0, 0.25, 0.5, 0.75, 1].forEach(function (p) {
+      svg.appendChild(el('line', { x1: padL, x2: W - padR, y1: yPos(p), y2: yPos(p), stroke: 'var(--line)', 'stroke-width': 1 }));
+      var t = el('text', { x: padL - 8, y: yPos(p) + 3, 'text-anchor': 'end', class: 'mono', 'font-size': 8, fill: 'var(--text-dim)' });
+      t.textContent = p.toFixed(2).replace(/0$/, '');
+      svg.appendChild(t);
+    });
+    [0, 50, 100, 150, 200].forEach(function (day) {
+      var t = el('text', { x: xPos(day), y: H - 6, 'text-anchor': 'middle', class: 'mono', 'font-size': 8, fill: 'var(--text-dim)' });
+      t.textContent = day;
+      svg.appendChild(t);
+    });
+
+    svg.appendChild(el('path', { d: stepPath(large), fill: 'none', stroke: 'var(--cobalt)', 'stroke-width': 2 }));
+    svg.appendChild(el('path', { d: stepPath(small), fill: 'none', stroke: 'var(--brass)', 'stroke-width': 2 }));
+
+    var lastLarge = large[large.length - 1], lastSmall = small[small.length - 1];
+    svg.appendChild(el('circle', { cx: xPos(lastLarge[0]), cy: yPos(lastLarge[1]), r: 3, fill: 'var(--cobalt)' }));
+    svg.appendChild(el('circle', { cx: xPos(lastSmall[0]), cy: yPos(lastSmall[1]), r: 3, fill: 'var(--brass)' }));
+  })();
+</script>
